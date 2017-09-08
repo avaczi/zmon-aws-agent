@@ -3,6 +3,8 @@ import logging
 
 from botocore.exceptions import ClientError
 
+from opentracing_utils import trace
+
 from zmon_aws_agent import __version__
 
 
@@ -20,6 +22,7 @@ def get_sleep_duration(retries):
     return 2 ** retries * TIME_OUT
 
 
+@trace()
 def call_and_retry(fn, *args, **kwargs):
     """Call `fn` and retry in case of API Throttling exception."""
     count = 0
