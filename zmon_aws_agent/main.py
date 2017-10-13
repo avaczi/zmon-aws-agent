@@ -53,16 +53,16 @@ def remove_missing_entities(existing_ids, current_ids, zmon_client, json=False):
 
 def new_or_updated_entity(entity, existing_entities_dict):
     # check if new entity
-    if entity['id'] not in existing_entities_dict:
+    if entity.get('id') not in existing_entities_dict:
         return True
 
-    existing_entities_dict[entity['id']].pop('last_modified', None)
+    existing_entities_dict[entity.get('id')].pop('last_modified', None)
 
-    return not compare_entities(entity, existing_entities_dict[entity['id']])
+    return not compare_entities(entity, existing_entities_dict[entity.get('id')])
 
 
 def add_new_entities(all_current_entities, existing_entities, zmon_client, json=False):
-    existing_entities_dict = {e['id']: e for e in existing_entities}
+    existing_entities_dict = {e.get('id'): e for e in existing_entities}
     new_entities = [e for e in all_current_entities if new_or_updated_entity(e, existing_entities_dict)]
 
     error_count = 0
@@ -71,7 +71,7 @@ def add_new_entities(all_current_entities, existing_entities, zmon_client, json=
         logger.info('Adding {} new entities in ZMON'.format(len(new_entities)))
         for entity in new_entities:
             try:
-                logger.info('Adding new {} entity with ID: {}'.format(entity['type'], entity['id']))
+                logger.info('Adding new {} entity with ID: {}'.format(entity['type'], entity.get('id')))
 
                 zmon_client.add_entity(entity)
             except:
@@ -161,6 +161,7 @@ def main():
         certificates = aws.get_certificates(region, infrastructure_account)
         aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs)
         sqs = aws.get_sqs_queues(region, infrastructure_account, entities)
+        postgresql_clusters = postgresql.get_postgresql_clusters(region, infrastructure_account)
 
     account_alias = aws.get_account_alias(region)
     ia_entity = {
@@ -197,12 +198,14 @@ def main():
         certificates + sqs)
     current_entities.append(aws_limits)
     current_entities.append(ia_entity)
+    current_entities = (postgresql_clusters)
+
     for entity in current_entities:
         entity.update(entity_extras)
 
     # 4. Removing misssing entities
     existing_ids = get_existing_ids(entities)
-    current_entities_ids = {e['id'] for e in current_entities}
+    current_entities_ids = {e.get('id') for e in current_entities}
 
     to_be_removed, delete_error_count = remove_missing_entities(
         existing_ids, current_entities_ids, zmon_client, json=args.json)
@@ -243,6 +246,7 @@ def main():
             'sqs_queues': sqs,
             'new_entities': new_entities,
             'to_be_removed': to_be_removed,
+            'posgresql_clusters': postgresql_clusters
         }
 
         print(json.dumps(d, indent=4))
