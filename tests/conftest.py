@@ -594,3 +594,84 @@ def get_sqs_queues():
         }]
 
     return urls, attributes, dead_letter_sources, result
+
+
+pg_infrastructure_account = 'aws:12345678'
+
+
+@pytest.fixture
+def fx_addresses(request):
+    return {'Addresses': [
+        {'NetworkInterfaceOwnerId': '12345678',
+         'InstanceId': 'i-1234',
+         'PublicIp': '12.23.34.45'},
+        {'NetworkInterfaceOwnerId': '32165478',
+         'InstanceId': 'i-5555',
+         'PublicIp': '12.23.43.54'}]}
+
+
+@pytest.fixture()
+def fx_asgs(request):
+    return {'AutoScalingGroups': [
+        {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:12345678:autoScalingGroup:aaa:bla',
+         'Tags': [
+             {'Key': 'Name',
+              'Value': 'spilo-bla',
+              'ResourceId': 'bla-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'},
+             {
+              'Key': 'SpiloCluster',
+              'Value': 'bla',
+              'ResourceId': 'bla-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'}]},
+        {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:12345678:autoScalingGroup:aaa:bla',
+         'Tags': [
+             {'Key': 'Name',
+              'Value': 'app-foo',
+              'ResourceId': 'foo-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'},
+             {
+              'Key': 'SomethingElse',
+              'Value': 'foo',
+              'ResourceId': 'foo-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'}]},
+        {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:32165487:autoScalingGroup:aaa:bla',
+         'Tags': [
+             {'Key': 'Name',
+              'Value': 'app-baz',
+              'ResourceId': 'baz-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'},
+             {
+              'Key': 'SpiloCluster',
+              'Value': 'baz',
+              'ResourceId': 'baz-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'}]}]}
+
+
+@pytest.fixture()
+def fx_pg_instances(request):
+    return {'Reservations': [
+        {'OwnerId': '12345678',
+         'Instances': [
+             {'InstanceId': 'i-1234',
+              'PrivateIpAddress': '192.168.1.1',
+              'Tags': [
+                  {'Key': 'Role',
+                   'Value': 'master'},
+                  {'Key': 'StackName',
+                   'Value': 'spilo'}]}]},
+        {'OwnerId': '32165487',
+         'Instances': [
+             {'InstanceId': 'i-4321',
+              'PrivateIpAddress': '192.168.1.2',
+              'Tags': [
+                  {'Key': 'Role',
+                   'Value': 'replica'},
+                  {'Key': 'StackName',
+                   'Value': 'spilo'}]}]}]}
