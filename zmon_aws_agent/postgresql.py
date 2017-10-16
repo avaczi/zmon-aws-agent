@@ -101,7 +101,7 @@ def get_postgresql_clusters(region, infrastructure_account):
 
     # we will use the ASGs as a skeleton for building the entities
     for cluster in spilo_asgs:
-        cluster_name = [t['Value'] for t in cluster['Tags'] if 'SpiloCluster' in t.values()][0]
+        cluster_name = [t['Value'] for t in cluster['Tags'] if t['Key'] == 'SpiloCluster'][0]
 
         cluster_instances = []
         eip = []
@@ -110,11 +110,11 @@ def get_postgresql_clusters(region, infrastructure_account):
             instance_id = i['InstanceId']
 
             try:
-                i_data = [i for i in instances if i['InstanceId'] == instance_id][0]
+                i_data = [inst for inst in instances if inst['InstanceId'] == instance_id][0]
             except IndexError:
                 raise Exception(str(cluster_instances))
             private_ip = i_data['PrivateIpAddress']
-            role = [d['Value'] for d in i_data['Tags'] if d['Key'] == 'Role']
+            role = [d['Value'] for d in i_data['Tags'] if d['Key'] == 'Role'][0]
 
             cluster_instances.append({'instance_id': instance_id,
                                       'private_ip': private_ip,

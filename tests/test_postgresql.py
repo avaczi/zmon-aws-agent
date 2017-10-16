@@ -49,9 +49,9 @@ def test_get_databases_from_clusters():
 
 
 def test_collect_addresses(monkeypatch, fx_addresses):
-    ec2_client = MagicMock()
-    ec2_client.describe_addresses.return_value = fx_addresses
-    boto = get_boto_client(monkeypatch, ec2_client)
+    ec2 = MagicMock()
+    ec2.describe_addresses.return_value = fx_addresses
+    boto = get_boto_client(monkeypatch, ec2)
 
     res = postgresql.collect_addresses(conftest.pg_infrastructure_account)
 
@@ -63,9 +63,9 @@ def test_collect_addresses(monkeypatch, fx_addresses):
 
 
 def test_collect_asgs(monkeypatch, fx_asgs):
-    asg_client = MagicMock()
-    asg_client.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_asgs
-    boto = get_boto_client(monkeypatch, asg_client)
+    asg = MagicMock()
+    asg.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_asgs
+    boto = get_boto_client(monkeypatch, asg)
 
     res = postgresql.collect_asgs(conftest.pg_infrastructure_account)
 
@@ -80,16 +80,27 @@ def test_collect_asgs(monkeypatch, fx_asgs):
                          'Value': 'bla',
                          'ResourceId': 'bla-AppServer-1A',
                          'ResourceType': 'auto-scaling-group',
-                         'PropagateAtLaunch': 'true'}]}]
+                         'PropagateAtLaunch': 'true'}],
+                    'Instances': [
+                        {'ProtectedFromScaleIn': 'false',
+                         'HealthStatus': 'Healthy',
+                         'LifecycleState': 'InService',
+                         'InstanceId': 'i-1234',
+                         'AvailabilityZone': 'eu-central-1b'},
+                        {'ProtectedFromScaleIn': 'false',
+                         'HealthStatus': 'Healthy',
+                         'LifecycleState': 'InService',
+                         'InstanceId': 'i-02e0',
+                         'AvailabilityZone': 'eu-central-1a'}]}]
 
-    asg_client.get_paginator.assert_called_with('describe_auto_scaling_groups')
+    asg.get_paginator.assert_called_with('describe_auto_scaling_groups')
     boto.assert_called_with('autoscaling')
 
 
 def test_collect_instances(monkeypatch, fx_pg_instances):
-    ec2_client = MagicMock()
-    ec2_client.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_pg_instances
-    boto = get_boto_client(monkeypatch, ec2_client)
+    ec2 = MagicMock()
+    ec2.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_pg_instances
+    boto = get_boto_client(monkeypatch, ec2)
 
     res = postgresql.collect_instances(conftest.pg_infrastructure_account)
 
@@ -99,7 +110,46 @@ def test_collect_instances(monkeypatch, fx_pg_instances):
                         {'Key': 'Role',
                          'Value': 'master'},
                         {'Key': 'StackName',
+                         'Value': 'spilo'}]},
+                   {'InstanceId': 'i-02e0',
+                    'PrivateIpAddress': '192.168.1.3',
+                    'Tags': [
+                        {'Key': 'Role',
+                         'Value': 'replica'},
+                        {'Key': 'StackName',
                          'Value': 'spilo'}]}]
 
-    ec2_client.get_paginator.assert_called_with('describe_instances')
+    ec2.get_paginator.assert_called_with('describe_instances')
     boto.assert_called_with('ec2')
+
+
+def test_get_postgresql_clusters(monkeypatch, fx_asgs_expected, fx_pg_instances_expected):
+    def addresses(i):
+        return [{'NetworkInterfaceOwnerId': '12345678',
+                 'InstanceId': 'i-1234',
+                 'PublicIp': '12.23.34.45'}]
+    monkeypatch.setattr(postgresql, 'collect_addresses', addresses)
+
+    def asgs(i):
+        return fx_asgs_expected
+    monkeypatch.setattr(postgresql, 'collect_asgs', asgs)
+
+    def insts(i):
+        return fx_pg_instances_expected
+    monkeypatch.setattr(postgresql, 'collect_instances', insts)
+
+    entities = postgresql.get_postgresql_clusters(conftest.REGION, conftest.pg_infrastructure_account)
+
+    assert entities == [{'type': 'postgresql_cluster',
+                         'id': 'pg-bla[aws:12345678:eu-central-1]',
+                         'region': conftest.REGION,
+                         'spilo_cluster': 'bla',
+                         'public_ip': '12.23.34.45',
+                         'public_ip_instance_id': 'i-1234',
+                         'instances': [{'instance_id': 'i-1234',
+                                        'private_ip': '192.168.1.1',
+                                        'role': 'master'},
+                                       {'instance_id': 'i-02e0',
+                                        'private_ip': '192.168.1.3',
+                                        'role': 'replica'}],
+                         'infrastructure_account': conftest.pg_infrastructure_account}]

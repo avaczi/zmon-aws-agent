@@ -625,7 +625,18 @@ def fx_asgs(request):
               'Value': 'bla',
               'ResourceId': 'bla-AppServer-1A',
               'ResourceType': 'auto-scaling-group',
-              'PropagateAtLaunch': 'true'}]},
+              'PropagateAtLaunch': 'true'}],
+         'Instances': [
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-1234',
+                 'AvailabilityZone': 'eu-central-1b'},
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-02e0',
+                 'AvailabilityZone': 'eu-central-1a'}]},
         {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:12345678:autoScalingGroup:aaa:bla',
          'Tags': [
              {'Key': 'Name',
@@ -638,7 +649,18 @@ def fx_asgs(request):
               'Value': 'foo',
               'ResourceId': 'foo-AppServer-1A',
               'ResourceType': 'auto-scaling-group',
-              'PropagateAtLaunch': 'true'}]},
+              'PropagateAtLaunch': 'true'}],
+         'Instances': [
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-7845',
+                 'AvailabilityZone': 'eu-central-1b'},
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-9854',
+                 'AvailabilityZone': 'eu-central-1a'}]},
         {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:32165487:autoScalingGroup:aaa:bla',
          'Tags': [
              {'Key': 'Name',
@@ -651,7 +673,47 @@ def fx_asgs(request):
               'Value': 'baz',
               'ResourceId': 'baz-AppServer-1A',
               'ResourceType': 'auto-scaling-group',
-              'PropagateAtLaunch': 'true'}]}]}
+              'PropagateAtLaunch': 'true'}],
+         'Instances': [
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-6587',
+                 'AvailabilityZone': 'eu-central-1b'},
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-6565',
+                 'AvailabilityZone': 'eu-central-1a'}]}]}
+
+
+@pytest.fixture()
+def fx_asgs_expected(request):
+    return [
+        {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:12345678:autoScalingGroup:aaa:bla',
+         'Tags': [
+             {'Key': 'Name',
+              'Value': 'spilo-bla',
+              'ResourceId': 'bla-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'},
+             {
+              'Key': 'SpiloCluster',
+              'Value': 'bla',
+              'ResourceId': 'bla-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'}],
+         'Instances': [
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-1234',
+                 'AvailabilityZone': 'eu-central-1b'},
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-02e0',
+                 'AvailabilityZone': 'eu-central-1a'}]}]
 
 
 @pytest.fixture()
@@ -666,6 +728,15 @@ def fx_pg_instances(request):
                    'Value': 'master'},
                   {'Key': 'StackName',
                    'Value': 'spilo'}]}]},
+        {'OwnerId': '12345678',
+         'Instances': [
+             {'InstanceId': 'i-02e0',
+              'PrivateIpAddress': '192.168.1.3',
+              'Tags': [
+                  {'Key': 'Role',
+                   'Value': 'replica'},
+                  {'Key': 'StackName',
+                   'Value': 'spilo'}]}]},
         {'OwnerId': '32165487',
          'Instances': [
              {'InstanceId': 'i-4321',
@@ -675,3 +746,21 @@ def fx_pg_instances(request):
                    'Value': 'replica'},
                   {'Key': 'StackName',
                    'Value': 'spilo'}]}]}]}
+
+
+@pytest.fixture()
+def fx_pg_instances_expected(request):
+    return [{'InstanceId': 'i-1234',
+             'PrivateIpAddress': '192.168.1.1',
+             'Tags': [
+                 {'Key': 'Role',
+                  'Value': 'master'},
+                 {'Key': 'StackName',
+                  'Value': 'spilo'}]},
+            {'InstanceId': 'i-02e0',
+             'PrivateIpAddress': '192.168.1.3',
+             'Tags': [
+                 {'Key': 'Role',
+                  'Value': 'replica'},
+                 {'Key': 'StackName',
+                  'Value': 'spilo'}]}]
