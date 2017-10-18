@@ -13,7 +13,6 @@ POSTGRESQL_DEFAULT_PORT = 5432
 
 
 def list_postgres_databases(*args, **kwargs):
-    logger.info("Trying to list DBs on host: {}".format(kwargs.get('host')))
     try:
         conn = psycopg2.connect(*args, **kwargs)
         cur = conn.cursor()
@@ -92,6 +91,23 @@ def collect_instances(infrastructure_account):
     return [i['Instances'][0] for i in instances if i['OwnerId'] == infrastructure_account.split(':')[1]]
 
 
+def extract_eip_allocation_from_lc(infrastructure_account, cluster_name):
+    import yaml
+    import base64
+
+    asg = boto3.client('autoscaling')
+    lc_paginator = asg.get_paginator('describe_launch_configurations')
+    lcs = lc_paginator.paginate().build_full_result()['LaunchConfigurations']
+    launch_configuration = [lc for lc in lcs
+                            if lc['LaunchConfigurationARN'].split(':')[-1].split('-')[1] == cluster_name
+                            and lc['LaunchConfigurationARN'].split(':')[4]
+                            == infrastructure_account.split(':')[1]][0]
+    user_data = base64.decodebytes(launch_configuration['UserData'].encode('utf-8')).decode('utf-8')
+    user_data = yaml.safe_load(user_data)
+
+    return user_data['environment'].get('EIP_ALLOCATION')
+
+
 def get_postgresql_clusters(region, infrastructure_account):
     entities = []
 
@@ -125,13 +141,22 @@ def get_postgresql_clusters(region, infrastructure_account):
                 eip.append(address[0])  # we expect only one EIP per instance
 
         if len(eip) > 1:
-            pass  # throw an error?  should not happen, but who knows
+            pass  # in the future, this might be a valid case, when replicas also get public IPs
         elif not eip:
-            public_ip = ''
+            # in this case we have to look at the cluster definition, to see if there was an EIP assigned,
+            # but for some reason currently is not.
+            eip_allocation = extract_eip_allocation_from_lc(infrastructure_account, cluster_name)
+
             public_ip_instance_id = ''
+            if eip_allocation:
+                address = [a for a in addresses if a.get('AllocationId') == eip_allocation]
+                if address:
+                    public_ip = address[0]['PublicIp']
+                    allocation_error = 'There is a public IP defined but not attached to any instance'
         else:
             public_ip = eip[0]['PublicIp']
             public_ip_instance_id = eip[0]['InstanceId']
+            allocation_error = ''
 
         entities.append({'type': 'postgresql_cluster',
                          'id': entity_id('pg-{}[{}:{}]'.format(cluster_name, infrastructure_account, region)),
@@ -139,6 +164,7 @@ def get_postgresql_clusters(region, infrastructure_account):
                          'spilo_cluster': cluster_name,
                          'public_ip': public_ip,
                          'public_ip_instance_id': public_ip_instance_id,
+                         'allocation_error': allocation_error,
                          'instances': cluster_instances,
                          'infrastructure_account': infrastructure_account})
 

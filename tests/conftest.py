@@ -604,10 +604,27 @@ def fx_addresses(request):
     return {'Addresses': [
         {'NetworkInterfaceOwnerId': '12345678',
          'InstanceId': 'i-1234',
-         'PublicIp': '12.23.34.45'},
+         'PublicIp': '12.23.34.45',
+         'AllocationId': 'eipalloc-12345678'},
+        {'NetworkInterfaceOwnerId': '12345678',
+         'PublicIp': '22.33.44.55',
+         'AllocationId': 'eipalloc-22334455'},
         {'NetworkInterfaceOwnerId': '32165478',
-         'InstanceId': 'i-5555',
-         'PublicIp': '12.23.43.54'}]}
+         'InstanceId': 'i-7777',
+         'PublicIp': '12.23.43.54',
+         'AllocationId': 'eipalloc-45454545'}]}
+
+
+@pytest.fixture
+def fx_addresses_expected(request):
+    return [
+        {'NetworkInterfaceOwnerId': '12345678',
+         'InstanceId': 'i-1234',
+         'PublicIp': '12.23.34.45',
+         'AllocationId': 'eipalloc-12345678'},
+        {'NetworkInterfaceOwnerId': '12345678',
+         'PublicIp': '22.33.44.55',
+         'AllocationId': 'eipalloc-22334455'}]
 
 
 @pytest.fixture()
@@ -637,7 +654,31 @@ def fx_asgs(request):
                  'LifecycleState': 'InService',
                  'InstanceId': 'i-02e0',
                  'AvailabilityZone': 'eu-central-1a'}]},
-        {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:12345678:autoScalingGroup:aaa:bla',
+        {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:12345678:autoScalingGroup:aaa:malm',
+         'Tags': [
+             {'Key': 'Name',
+              'Value': 'spilo-malm',
+              'ResourceId': 'malm-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'},
+             {
+              'Key': 'SpiloCluster',
+              'Value': 'malm',
+              'ResourceId': 'malm-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'}],
+         'Instances': [
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-4444',
+                 'AvailabilityZone': 'eu-central-1b'},
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-5555',
+                 'AvailabilityZone': 'eu-central-1a'}]},
+        {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:12345678:autoScalingGroup:aaa:foo',
          'Tags': [
              {'Key': 'Name',
               'Value': 'app-foo',
@@ -713,6 +754,30 @@ def fx_asgs_expected(request):
                  'HealthStatus': 'Healthy',
                  'LifecycleState': 'InService',
                  'InstanceId': 'i-02e0',
+                 'AvailabilityZone': 'eu-central-1a'}]},
+        {'AutoScalingGroupARN': 'arn:aws:autoscaling:eu-central-1:12345678:autoScalingGroup:aaa:malm',
+         'Tags': [
+             {'Key': 'Name',
+              'Value': 'spilo-malm',
+              'ResourceId': 'malm-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'},
+             {
+              'Key': 'SpiloCluster',
+              'Value': 'malm',
+              'ResourceId': 'malm-AppServer-1A',
+              'ResourceType': 'auto-scaling-group',
+              'PropagateAtLaunch': 'true'}],
+         'Instances': [
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-4444',
+                 'AvailabilityZone': 'eu-central-1b'},
+                {'ProtectedFromScaleIn': 'false',
+                 'HealthStatus': 'Healthy',
+                 'LifecycleState': 'InService',
+                 'InstanceId': 'i-5555',
                  'AvailabilityZone': 'eu-central-1a'}]}]
 
 
@@ -732,6 +797,24 @@ def fx_pg_instances(request):
          'Instances': [
              {'InstanceId': 'i-02e0',
               'PrivateIpAddress': '192.168.1.3',
+              'Tags': [
+                  {'Key': 'Role',
+                   'Value': 'replica'},
+                  {'Key': 'StackName',
+                   'Value': 'spilo'}]}]},
+        {'OwnerId': '12345678',
+         'Instances': [
+             {'InstanceId': 'i-4444',
+              'PrivateIpAddress': '192.168.13.32',
+              'Tags': [
+                  {'Key': 'Role',
+                   'Value': 'master'},
+                  {'Key': 'StackName',
+                   'Value': 'spilo'}]}]},
+        {'OwnerId': '12345678',
+         'Instances': [
+             {'InstanceId': 'i-5555',
+              'PrivateIpAddress': '192.168.31.154',
               'Tags': [
                   {'Key': 'Role',
                    'Value': 'replica'},
@@ -763,4 +846,33 @@ def fx_pg_instances_expected(request):
                  {'Key': 'Role',
                   'Value': 'replica'},
                  {'Key': 'StackName',
+                  'Value': 'spilo'}]},
+            {'InstanceId': 'i-4444',
+             'PrivateIpAddress': '192.168.13.32',
+             'Tags': [
+                 {'Key': 'Role',
+                  'Value': 'master'},
+                 {'Key': 'StackName',
+                  'Value': 'spilo'}]},
+            {'InstanceId': 'i-5555',
+             'PrivateIpAddress': '192.168.31.154',
+             'Tags': [
+                 {'Key': 'Role',
+                  'Value': 'replica'},
+                 {'Key': 'StackName',
                   'Value': 'spilo'}]}]
+
+
+@pytest.fixture()
+def fx_eip_allocation(request):
+    return 'eipalloc-22334455'
+
+
+@pytest.fixture()
+def fx_launch_configuration(request):
+    return {'LaunchConfigurations': [
+               {'LaunchConfigurationARN': 'arn:aws:autoscaling:eu-central-1:12345678:lfc:aaa:lcfn/spilo-malm-c-d',
+                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg=='}]}
+
+
+PG_CLUSTER = 'malm'
