@@ -91,18 +91,22 @@ def collect_instances(infrastructure_account):
     return [i['Instances'][0] for i in instances if i['OwnerId'] == infrastructure_account.split(':')[1]]
 
 
-def extract_eip_allocation_from_lc(infrastructure_account, cluster_name):
-    import yaml
-    import base64
-
+def collect_launch_configurations(infrastructure_account):
     asg = boto3.client('autoscaling')
     lc_paginator = asg.get_paginator('describe_launch_configurations')
     lcs = lc_paginator.paginate().build_full_result()['LaunchConfigurations']
-    launch_configuration = [lc for lc in lcs
-                            if lc['LaunchConfigurationARN'].split(':')[-1].split('-')[1] == cluster_name
-                            and lc['LaunchConfigurationARN'].split(':')[4]
-                            == infrastructure_account.split(':')[1]][0]
-    user_data = base64.decodebytes(launch_configuration['UserData'].encode('utf-8')).decode('utf-8')
+
+    return [lc for lc in lcs
+            if lc['LaunchConfigurationARN'].split(':')[4] == infrastructure_account.split(':')[1]]
+
+
+def extract_eipalloc_from_lc(launch_configuration, cluster_name):
+    import yaml
+    import base64
+
+    lc = [lc for lc in launch_configuration
+          if lc['LaunchConfigurationARN'].split(':')[-1].split('-')[1] == cluster_name][0]
+    user_data = base64.decodebytes(lc['UserData'].encode('utf-8')).decode('utf-8')
     user_data = yaml.safe_load(user_data)
 
     return user_data['environment'].get('EIP_ALLOCATION')
@@ -114,6 +118,7 @@ def get_postgresql_clusters(region, infrastructure_account):
     addresses = collect_addresses(infrastructure_account)
     spilo_asgs = collect_asgs(infrastructure_account)
     instances = collect_instances(infrastructure_account)
+    launch_configs = []
 
     # we will use the ASGs as a skeleton for building the entities
     for cluster in spilo_asgs:
@@ -121,6 +126,7 @@ def get_postgresql_clusters(region, infrastructure_account):
 
         cluster_instances = []
         eip = []
+        eip_allocation = []
 
         for i in cluster['Instances']:
             instance_id = i['InstanceId']
@@ -145,7 +151,12 @@ def get_postgresql_clusters(region, infrastructure_account):
         elif not eip:
             # in this case we have to look at the cluster definition, to see if there was an EIP assigned,
             # but for some reason currently is not.
-            eip_allocation = extract_eip_allocation_from_lc(infrastructure_account, cluster_name)
+
+            # this is so for reducing boto3 call numbers
+            if not launch_configs:
+                launch_configs = collect_launch_configurations(infrastructure_account)
+
+            eip_allocation = extract_eipalloc_from_lc(launch_configs, cluster_name)
 
             public_ip_instance_id = ''
             if eip_allocation:

@@ -79,17 +79,28 @@ def test_collect_asgs(monkeypatch, fx_asgs, fx_asgs_expected):
     boto.assert_called_with('autoscaling')
 
 
-def test_extract_eip_allocation_from_lc(monkeypatch, fx_launch_configuration):
+def test_collect_launch_configurations(monkeypatch, fx_launch_configuration, fx_launch_configuration_expected):
     asg = MagicMock()
     asg.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_launch_configuration
     boto = get_boto_client(monkeypatch, asg)
 
-    res = postgresql.extract_eip_allocation_from_lc(conftest.pg_infrastructure_account, conftest.PG_CLUSTER)
+    res = postgresql.collect_launch_configurations(conftest.pg_infrastructure_account)
 
-    assert res == 'eipalloc-22334455'
+    assert res == fx_launch_configuration_expected
 
     asg.get_paginator.assert_called_with('describe_launch_configurations')
     boto.assert_called_with('autoscaling')
+
+
+def text_extract_eipalloc_from_lc(monkeypatch, fx_eip_allocation, fx_launch_configuration_expected):
+    def lcs(i):
+        return fx_launch_configuration_expected
+    monkeypatch.setattr(postgresql, 'extract_eipalloc_from_lc', lcs)
+
+    res = postgresql.extract_eipalloc_from_lc(
+        postgresql.collect_launch_configurations(conftest.pg_infrastructure_account, conftest.PG_CLUSTER))
+
+    assert res == fx_eip_allocation
 
 
 def test_collect_instances(monkeypatch, fx_pg_instances, fx_pg_instances_expected):
@@ -106,7 +117,8 @@ def test_collect_instances(monkeypatch, fx_pg_instances, fx_pg_instances_expecte
 
 
 def test_get_postgresql_clusters(
-        monkeypatch, fx_addresses_expected, fx_asgs_expected, fx_pg_instances_expected, fx_eip_allocation
+        monkeypatch, fx_addresses_expected, fx_asgs_expected, fx_pg_instances_expected,
+        fx_eip_allocation, fx_launch_configuration_expected
 ):
     def addresses(i):
         return fx_addresses_expected
@@ -120,9 +132,13 @@ def test_get_postgresql_clusters(
         return fx_pg_instances_expected
     monkeypatch.setattr(postgresql, 'collect_instances', insts)
 
+    def lcs(i):
+        return fx_launch_configuration_expected
+    monkeypatch.setattr(postgresql, 'collect_launch_configurations', lcs)
+
     def allocs(i, j):
         return fx_eip_allocation
-    monkeypatch.setattr(postgresql, 'extract_eip_allocation_from_lc', allocs)
+    monkeypatch.setattr(postgresql, 'extract_eipalloc_from_lc', allocs)
 
     entities = postgresql.get_postgresql_clusters(conftest.REGION, conftest.pg_infrastructure_account)
 
