@@ -161,7 +161,8 @@ def main():
         certificates = aws.get_certificates(region, infrastructure_account)
         aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs)
         sqs = aws.get_sqs_queues(region, infrastructure_account, entities)
-        postgresql_clusters = postgresql.get_postgresql_clusters(region, infrastructure_account)
+        postgresql_clusters = postgresql.get_postgresql_clusters(region, infrastructure_account,
+                                                                 scaling_groups, apps)
 
     account_alias = aws.get_account_alias(region)
     ia_entity = {

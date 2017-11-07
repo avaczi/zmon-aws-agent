@@ -66,17 +66,25 @@ def test_collect_addresses(monkeypatch, fx_addresses):
     boto.assert_called_with('ec2')
 
 
-def test_collect_asgs(monkeypatch, fx_asgs, fx_asgs_expected):
-    asg = MagicMock()
-    asg.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_asgs
-    boto = get_boto_client(monkeypatch, asg)
+# def test_collect_asgs(monkeypatch, fx_asgs, fx_asgs_expected):
+#     asg = MagicMock()
+#     asg.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_asgs
+#     boto = get_boto_client(monkeypatch, asg)
+#
+#     res = postgresql.collect_asgs(conftest.pg_infrastructure_account)
+#
+#     assert res == fx_asgs_expected
+#
+#     asg.get_paginator.assert_called_with('describe_auto_scaling_groups')
+#     boto.assert_called_with('autoscaling')
 
-    res = postgresql.collect_asgs(conftest.pg_infrastructure_account)
 
-    assert res == fx_asgs_expected
+def test_filter_asgs(fx_asgs, fx_asgs_expected):
+    assert postgresql.filter_asgs(conftest.pg_infrastructure_account, fx_asgs) == fx_asgs_expected
 
-    asg.get_paginator.assert_called_with('describe_auto_scaling_groups')
-    boto.assert_called_with('autoscaling')
+
+def test_filter_instances(fx_pg_instances, fx_pg_instances_expected):
+    assert postgresql.filter_instances(conftest.pg_infrastructure_account, fx_pg_instances) == fx_pg_instances_expected
 
 
 def test_collect_launch_configurations(monkeypatch, fx_launch_configuration, fx_launch_configuration_expected):
@@ -92,28 +100,28 @@ def test_collect_launch_configurations(monkeypatch, fx_launch_configuration, fx_
     boto.assert_called_with('autoscaling')
 
 
-def text_extract_eipalloc_from_lc(monkeypatch, fx_eip_allocation, fx_launch_configuration_expected):
+def test_extract_eipalloc_from_lc(monkeypatch, fx_eip_allocation, fx_launch_configuration_expected):
     def lcs(i):
         return fx_launch_configuration_expected
-    monkeypatch.setattr(postgresql, 'extract_eipalloc_from_lc', lcs)
+    monkeypatch.setattr(postgresql, 'collect_launch_configurations', lcs)
 
     res = postgresql.extract_eipalloc_from_lc(
-        postgresql.collect_launch_configurations(conftest.pg_infrastructure_account, conftest.PG_CLUSTER))
+        postgresql.collect_launch_configurations(conftest.pg_infrastructure_account), conftest.PG_CLUSTER)
 
     assert res == fx_eip_allocation
 
 
-def test_collect_instances(monkeypatch, fx_pg_instances, fx_pg_instances_expected):
-    ec2 = MagicMock()
-    ec2.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_pg_instances
-    boto = get_boto_client(monkeypatch, ec2)
-
-    res = postgresql.collect_instances(conftest.pg_infrastructure_account)
-
-    assert res == fx_pg_instances_expected
-
-    ec2.get_paginator.assert_called_with('describe_instances')
-    boto.assert_called_with('ec2')
+# def test_collect_instances(monkeypatch, fx_pg_instances, fx_pg_instances_expected):
+#     ec2 = MagicMock()
+#     ec2.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_pg_instances
+#     boto = get_boto_client(monkeypatch, ec2)
+#
+#     res = postgresql.collect_instances(conftest.pg_infrastructure_account)
+#
+#     assert res == fx_pg_instances_expected
+#
+#     ec2.get_paginator.assert_called_with('describe_instances')
+#     boto.assert_called_with('ec2')
 
 
 def test_get_postgresql_clusters(
@@ -140,7 +148,8 @@ def test_get_postgresql_clusters(
         return fx_eip_allocation
     monkeypatch.setattr(postgresql, 'extract_eipalloc_from_lc', allocs)
 
-    entities = postgresql.get_postgresql_clusters(conftest.REGION, conftest.pg_infrastructure_account)
+    entities = postgresql.get_postgresql_clusters(conftest.REGION, conftest.pg_infrastructure_account,
+                                                  fx_asgs_expected, fx_pg_instances_expected)
 
     assert entities == [{'type': 'postgresql_cluster',
                          'id': 'pg-bla[aws:12345678:eu-central-1]',

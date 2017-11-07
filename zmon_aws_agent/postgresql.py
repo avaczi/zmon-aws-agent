@@ -81,6 +81,12 @@ def collect_asgs(infrastructure_account):
             and ('Key', 'SpiloCluster') in [i for t in [g.items() for g in gr['Tags']] for i in t]]
 
 
+def filter_asgs(infrastructure_account, asgs):
+    return [gr for gr in asgs
+            if gr['infrastructure_account'] == infrastructure_account
+            and 'spilo_cluster' in gr.keys()]
+
+
 def collect_instances(infrastructure_account):
     ec2 = boto3.client('ec2')
 
@@ -89,6 +95,10 @@ def collect_instances(infrastructure_account):
 
     # we assume only one instance per reservation
     return [i['Instances'][0] for i in instances if i['OwnerId'] == infrastructure_account.split(':')[1]]
+
+
+def filter_instances(infrastructure_account, instances):
+    return [i for i in instances if i['infrastructure_account'] == infrastructure_account]
 
 
 def collect_launch_configurations(infrastructure_account):
@@ -112,31 +122,31 @@ def extract_eipalloc_from_lc(launch_configuration, cluster_name):
     return user_data['environment'].get('EIP_ALLOCATION')
 
 
-def get_postgresql_clusters(region, infrastructure_account):
+def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
     entities = []
 
     addresses = collect_addresses(infrastructure_account)
-    spilo_asgs = collect_asgs(infrastructure_account)
-    instances = collect_instances(infrastructure_account)
+    spilo_asgs = filter_asgs(infrastructure_account, asgs)
+    instances = filter_instances(infrastructure_account, insts)
     launch_configs = []
 
     # we will use the ASGs as a skeleton for building the entities
     for cluster in spilo_asgs:
-        cluster_name = [t['Value'] for t in cluster['Tags'] if t['Key'] == 'SpiloCluster'][0]
+        cluster_name = cluster['spilo_cluster']
 
         cluster_instances = []
         eip = []
         eip_allocation = []
 
-        for i in cluster['Instances']:
-            instance_id = i['InstanceId']
+        for i in cluster['instances']:
+            instance_id = i['aws_id']
 
             try:
-                i_data = [inst for inst in instances if inst['InstanceId'] == instance_id][0]
+                i_data = [inst for inst in instances if inst['aws_id'] == instance_id][0]
             except IndexError:
                 raise Exception(str(cluster_instances))
-            private_ip = i_data['PrivateIpAddress']
-            role = [d['Value'] for d in i_data['Tags'] if d['Key'] == 'Role'][0]
+            private_ip = i_data['ip']
+            role = i_data['role']
 
             cluster_instances.append({'instance_id': instance_id,
                                       'private_ip': private_ip,
@@ -144,7 +154,7 @@ def get_postgresql_clusters(region, infrastructure_account):
 
             address = [a for a in addresses if a.get('InstanceId') == instance_id]
             if address:
-                eip.append(address[0])  # we expect only one EIP per instance
+                eip.append(address[0])  # we currently expect only one EIP per instance
 
         if len(eip) > 1:
             pass  # in the future, this might be a valid case, when replicas also get public IPs
