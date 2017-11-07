@@ -66,19 +66,6 @@ def test_collect_addresses(monkeypatch, fx_addresses):
     boto.assert_called_with('ec2')
 
 
-# def test_collect_asgs(monkeypatch, fx_asgs, fx_asgs_expected):
-#     asg = MagicMock()
-#     asg.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_asgs
-#     boto = get_boto_client(monkeypatch, asg)
-#
-#     res = postgresql.collect_asgs(conftest.pg_infrastructure_account)
-#
-#     assert res == fx_asgs_expected
-#
-#     asg.get_paginator.assert_called_with('describe_auto_scaling_groups')
-#     boto.assert_called_with('autoscaling')
-
-
 def test_filter_asgs(fx_asgs, fx_asgs_expected):
     assert postgresql.filter_asgs(conftest.pg_infrastructure_account, fx_asgs) == fx_asgs_expected
 
@@ -111,19 +98,6 @@ def test_extract_eipalloc_from_lc(monkeypatch, fx_eip_allocation, fx_launch_conf
     assert res == fx_eip_allocation
 
 
-# def test_collect_instances(monkeypatch, fx_pg_instances, fx_pg_instances_expected):
-#     ec2 = MagicMock()
-#     ec2.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_pg_instances
-#     boto = get_boto_client(monkeypatch, ec2)
-#
-#     res = postgresql.collect_instances(conftest.pg_infrastructure_account)
-#
-#     assert res == fx_pg_instances_expected
-#
-#     ec2.get_paginator.assert_called_with('describe_instances')
-#     boto.assert_called_with('ec2')
-
-
 def test_get_postgresql_clusters(
         monkeypatch, fx_addresses_expected, fx_asgs_expected, fx_pg_instances_expected,
         fx_eip_allocation, fx_launch_configuration_expected
@@ -131,14 +105,6 @@ def test_get_postgresql_clusters(
     def addresses(i):
         return fx_addresses_expected
     monkeypatch.setattr(postgresql, 'collect_addresses', addresses)
-
-    def asgs(i):
-        return fx_asgs_expected
-    monkeypatch.setattr(postgresql, 'collect_asgs', asgs)
-
-    def insts(i):
-        return fx_pg_instances_expected
-    monkeypatch.setattr(postgresql, 'collect_instances', insts)
 
     def lcs(i):
         return fx_launch_configuration_expected

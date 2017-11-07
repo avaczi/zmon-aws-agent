@@ -70,31 +70,10 @@ def collect_addresses(infrastructure_account):
 # FIXME: depend on region, too?
 
 
-def collect_asgs(infrastructure_account):
-    asg = boto3.client('autoscaling')
-
-    asg_paginator = asg.get_paginator('describe_auto_scaling_groups')
-    all_groups = call_and_retry(lambda: asg_paginator.paginate().build_full_result()['AutoScalingGroups'])
-
-    return [gr for gr in all_groups
-            if gr['AutoScalingGroupARN'].split(':')[4] == infrastructure_account.split(':')[1]
-            and ('Key', 'SpiloCluster') in [i for t in [g.items() for g in gr['Tags']] for i in t]]
-
-
 def filter_asgs(infrastructure_account, asgs):
     return [gr for gr in asgs
             if gr['infrastructure_account'] == infrastructure_account
             and 'spilo_cluster' in gr.keys()]
-
-
-def collect_instances(infrastructure_account):
-    ec2 = boto3.client('ec2')
-
-    inst_paginator = ec2.get_paginator('describe_instances')
-    instances = inst_paginator.paginate().build_full_result()['Reservations']
-
-    # we assume only one instance per reservation
-    return [i['Instances'][0] for i in instances if i['OwnerId'] == infrastructure_account.split(':')[1]]
 
 
 def filter_instances(infrastructure_account, instances):
