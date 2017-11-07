@@ -199,7 +199,7 @@ def main():
         certificates + sqs)
     current_entities.append(aws_limits)
     current_entities.append(ia_entity)
-    current_entities = (postgresql_clusters)
+    current_entities.append(postgresql_clusters)
 
     for entity in current_entities:
         entity.update(entity_extras)
