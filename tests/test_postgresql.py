@@ -48,12 +48,12 @@ def test_get_databases_from_clusters():
     ]
 
 
-def test_collect_addresses(monkeypatch, fx_addresses):
+def test_collect_eip_addresses(monkeypatch, fx_addresses):
     ec2 = MagicMock()
     ec2.describe_addresses.return_value = fx_addresses
     boto = get_boto_client(monkeypatch, ec2)
 
-    res = postgresql.collect_addresses(conftest.pg_infrastructure_account)
+    res = postgresql.collect_eip_addresses(conftest.pg_infrastructure_account)
 
     assert res == [{'NetworkInterfaceOwnerId': '12345678',
                     'InstanceId': 'i-1234',
@@ -104,7 +104,7 @@ def test_get_postgresql_clusters(
 ):
     def addresses(i):
         return fx_addresses_expected
-    monkeypatch.setattr(postgresql, 'collect_addresses', addresses)
+    monkeypatch.setattr(postgresql, 'collect_eip_addresses', addresses)
 
     def lcs(i):
         return fx_launch_configuration_expected
