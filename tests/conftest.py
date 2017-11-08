@@ -749,14 +749,16 @@ def fx_eip_allocation(request):
 @pytest.fixture()
 def fx_launch_configuration(request):
     return {'LaunchConfigurations': [
-               {'LaunchConfigurationARN': 'arn:aws:autoscaling:eu-central-1:12345678:lfc:aaa:lcfn/spilo-malm-c-d',
-                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg=='}]}
+               {'LaunchConfigurationName': 'spilo-malm-AppServerInstanceProfile-66CCXX77EEPP',
+                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg=='},
+               {'LaunchConfigurationName': 'spilo-foo-staging-AppServerInstanceProfile-66CCXX77YYZZ',
+                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMTzMzQ0NTV9Cg=='}]}
 
 
 @pytest.fixture()
 def fx_launch_configuration_expected(request):
-    return [{'LaunchConfigurationARN': 'arn:aws:autoscaling:eu-central-1:12345678:lfc:aaa:lcfn/spilo-malm-c-d',
-             'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg=='}]
+    return {'malm': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg==',
+            'foo-staging': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMTzMzQ0NTV9Cg=='}
 
 
 PG_CLUSTER = 'malm'

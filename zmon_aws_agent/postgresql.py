@@ -85,20 +85,26 @@ def collect_launch_configurations(infrastructure_account):
     lc_paginator = asg.get_paginator('describe_launch_configurations')
     lcs = lc_paginator.paginate().build_full_result()['LaunchConfigurations']
 
-    return [lc for lc in lcs
-            if lc['LaunchConfigurationARN'].split(':')[4] == infrastructure_account.split(':')[1]]
+    user_data = {}
+
+    for lc in lcs:
+        # LaunchConfigurationName takes the form of spilo-your-cluster-AppServerInstanceProfile-66CCXX77EEPP
+        lc_name = '-'.join(lc['LaunchConfigurationName'].split('-')[1:-2])
+        user_data[lc_name] = lc['UserData']
+
+    return user_data
 
 
 def extract_eipalloc_from_lc(launch_configuration, cluster_name):
     import yaml
     import base64
 
-    lc = [lc for lc in launch_configuration
-          if lc['LaunchConfigurationARN'].split(':')[-1].split('-')[1] == cluster_name][0]
-    user_data = base64.decodebytes(lc['UserData'].encode('utf-8')).decode('utf-8')
+    lc = launch_configuration.get(cluster_name, '')
+
+    user_data = base64.decodebytes(lc.encode('utf-8')).decode('utf-8')
     user_data = yaml.safe_load(user_data)
 
-    return user_data['environment'].get('EIP_ALLOCATION')
+    return user_data['environment'].get('EIP_ALLOCATION', '')
 
 
 def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
@@ -162,8 +168,8 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
                          'id': entity_id('pg-{}[{}:{}]'.format(cluster_name, infrastructure_account, region)),
                          'region': region,
                          'spilo_cluster': cluster_name,
-                         'public_ip': public_ip,
-                         'public_ip_instance_id': public_ip_instance_id,
+                         'elastic_ip': public_ip,
+                         'elastic_ip_instance_id': public_ip_instance_id,
                          'allocation_error': allocation_error,
                          'instances': cluster_instances,
                          'infrastructure_account': infrastructure_account})
