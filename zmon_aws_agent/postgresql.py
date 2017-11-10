@@ -85,7 +85,7 @@ def filter_instances(infrastructure_account, instances):
 def collect_launch_configurations(infrastructure_account):
     asg = boto3.client('autoscaling')
     lc_paginator = asg.get_paginator('describe_launch_configurations')
-    lcs = lc_paginator.paginate().build_full_result()['LaunchConfigurations']
+    lcs = call_and_retry(lambda: lc_paginator.paginate().build_full_result()['LaunchConfigurations'])
 
     user_data = {}
 
@@ -109,9 +109,14 @@ def extract_eipalloc_from_lc(launch_configuration, cluster_name):
 def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
     entities = []
 
-    addresses = collect_eip_addresses(infrastructure_account)
-    spilo_asgs = filter_asgs(infrastructure_account, asgs)
-    instances = filter_instances(infrastructure_account, insts)
+    try:
+        addresses = collect_eip_addresses(infrastructure_account)
+        spilo_asgs = filter_asgs(infrastructure_account, asgs)
+        instances = filter_instances(infrastructure_account, insts)
+    except Exception:
+        logger.exception('Failed to collect the AWS objects for PostgreSQL cluster detection')
+        return []
+
     launch_configs = []
 
     # we will use the ASGs as a skeleton for building the entities
@@ -128,7 +133,8 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
             try:
                 i_data = [inst for inst in instances if inst['aws_id'] == instance_id][0]
             except IndexError:
-                raise Exception(str(cluster_instances))
+                logger.exception('Failed to find a Spilo EC2 instance: %s', instance_id)
+
             private_ip = i_data['ip']
             role = i_data['role']
 
@@ -147,17 +153,21 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
             # but for some reason currently is not.
 
             # this is so for reducing boto3 call numbers
-            if not launch_configs:
-                launch_configs = collect_launch_configurations(infrastructure_account)
+            try:
+                if not launch_configs:
+                    launch_configs = collect_launch_configurations(infrastructure_account)
 
-            eip_allocation = extract_eipalloc_from_lc(launch_configs, cluster_name)
+                eip_allocation = extract_eipalloc_from_lc(launch_configs, cluster_name)
 
-            public_ip_instance_id = ''
-            if eip_allocation:
-                address = [a for a in addresses if a.get('AllocationId') == eip_allocation]
-                if address:
-                    public_ip = address[0]['PublicIp']
-                    allocation_error = 'There is a public IP defined but not attached to any instance'
+                public_ip_instance_id = ''
+                if eip_allocation:
+                    address = [a for a in addresses if a.get('AllocationId') == eip_allocation]
+                    if address:
+                        public_ip = address[0]['PublicIp']
+                        allocation_error = 'There is a public IP defined but not attached to any instance'
+            except:
+                logger.exception('Failed to collect launch configurations')
+                return []
         else:
             public_ip = eip[0]['PublicIp']
             public_ip_instance_id = eip[0]['InstanceId']

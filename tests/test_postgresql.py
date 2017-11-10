@@ -1,7 +1,8 @@
 from mock import MagicMock
+import pytest
+
 from test_aws import get_boto_client
 import conftest
-
 import zmon_aws_agent.postgresql as postgresql
 
 
@@ -87,10 +88,8 @@ def test_collect_launch_configurations(monkeypatch, fx_launch_configuration, fx_
     boto.assert_called_with('autoscaling')
 
 
-def test_extract_eipalloc_from_lc(monkeypatch, fx_eip_allocation, fx_launch_configuration_expected):
-    def lcs(i):
-        return fx_launch_configuration_expected
-    monkeypatch.setattr(postgresql, 'collect_launch_configurations', lcs)
+def test_extract_eipalloc_from_lc(fx_eip_allocation, fx_launch_configuration_expected):
+    postgresql.collect_launch_configurations = MagicMock(return_value=fx_launch_configuration_expected)
 
     res = postgresql.extract_eipalloc_from_lc(
         postgresql.collect_launch_configurations(conftest.pg_infrastructure_account), conftest.PG_CLUSTER)
@@ -99,20 +98,12 @@ def test_extract_eipalloc_from_lc(monkeypatch, fx_eip_allocation, fx_launch_conf
 
 
 def test_get_postgresql_clusters(
-        monkeypatch, fx_addresses_expected, fx_asgs_expected, fx_pg_instances_expected,
+        fx_addresses_expected, fx_asgs_expected, fx_pg_instances_expected,
         fx_eip_allocation, fx_launch_configuration_expected
 ):
-    def addresses(i):
-        return fx_addresses_expected
-    monkeypatch.setattr(postgresql, 'collect_eip_addresses', addresses)
-
-    def lcs(i):
-        return fx_launch_configuration_expected
-    monkeypatch.setattr(postgresql, 'collect_launch_configurations', lcs)
-
-    def allocs(i, j):
-        return fx_eip_allocation
-    monkeypatch.setattr(postgresql, 'extract_eipalloc_from_lc', allocs)
+    postgresql.collect_eip_addresses = MagicMock(return_value=fx_addresses_expected)
+    postgresql.collect_launch_configurations = MagicMock(return_value=fx_launch_configuration_expected)
+    postgresql.extract_eipalloc_from_lc = MagicMock(return_value=fx_eip_allocation)
 
     entities = postgresql.get_postgresql_clusters(conftest.REGION, conftest.pg_infrastructure_account,
                                                   fx_asgs_expected, fx_pg_instances_expected)
@@ -145,3 +136,24 @@ def test_get_postgresql_clusters(
                                         'private_ip': '192.168.31.154',
                                         'role': 'replica'}],
                          'infrastructure_account': conftest.pg_infrastructure_account}]
+
+
+# If any of the utility functions fail, we expect an empty list
+fx_something_fails = ['collect_eip_addresses',
+                      'filter_asgs',
+                      'filter_instances',
+                      'collect_launch_configurations',
+                      'extract_eipalloc_from_lc']
+
+
+@pytest.mark.parametrize('func', fx_something_fails)
+@pytest.mark.parametrize('side_effect', [MagicMock(side_effect=Exception)])
+@pytest.mark.parametrize('output', [[]])
+def test_get_postgresql_clusters_after_exception(func, side_effect, output,
+                                                 fx_asgs_expected, fx_pg_instances_expected, monkeypatch):
+    monkeypatch.setattr(postgresql, func, side_effect)
+
+    entities = postgresql.get_postgresql_clusters(conftest.REGION, conftest.pg_infrastructure_account,
+                                                  fx_asgs_expected, fx_pg_instances_expected)
+
+    assert entities == output
