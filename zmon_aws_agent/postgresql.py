@@ -1,6 +1,8 @@
 import logging
 import psycopg2
 import boto3
+import yaml
+import base64
 
 # better move that one to common?
 from zmon_aws_agent.aws import entity_id
@@ -96,9 +98,6 @@ def collect_launch_configurations(infrastructure_account):
 
 
 def extract_eipalloc_from_lc(launch_configuration, cluster_name):
-    import yaml
-    import base64
-
     lc = launch_configuration.get(cluster_name, '')
 
     user_data = base64.decodebytes(lc.encode('utf-8')).decode('utf-8')
