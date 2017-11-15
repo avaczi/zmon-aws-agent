@@ -165,7 +165,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
                     if address:
                         public_ip = address[0]['PublicIp']
                         allocation_error = 'There is a public IP defined but not attached to any instance'
-            except:
+            except Exception:
                 logger.exception('Failed to collect launch configurations')
                 return []
         else:
