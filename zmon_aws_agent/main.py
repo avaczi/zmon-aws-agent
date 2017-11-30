@@ -178,7 +178,8 @@ def main():
         postgresql_clusters = zmon_client.get_entities({
             'infrastructure_account': infrastructure_account,
             'region': region,
-            'type': 'postgresql_cluster'
+            'type': 'postgresql_cluster',
+            'created_by': 'agent'
         })
         postgresql_databases = postgresql.get_databases_from_clusters(postgresql_clusters,
                                                                       infrastructure_account,
