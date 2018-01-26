@@ -106,6 +106,31 @@ def extract_eipalloc_from_lc(launch_configuration, cluster_name):
     return user_data['environment'].get('EIP_ALLOCATION', '')
 
 
+def collect_hosted_zones(infrastructure_account):
+    r53 = boto3.client('route53')
+    hosted_zones = r53.list_hosted_zones()  # we expect here approx. one entry
+    return [hz['Id'] for hz in hosted_zones['HostedZones']]
+
+
+def collect_recordsets(infrastructure_account):
+    r53 = boto3.client('route53')
+    hosted_zone_ids = collect_hosted_zones(infrastructure_account)
+    rs_paginator = r53.get_paginator('list_resource_record_sets')
+
+    recordsets = []
+    for hz in hosted_zone_ids:
+        recordsets = call_and_retry(
+            lambda: rs_paginator.paginate(HostedZoneId=hz).build_full_result()['ResourceRecordSets'])
+
+    ret = {}
+    for rs in recordsets:
+        if rs['Type'] == 'CNAME':
+            ip = rs['ResourceRecords'][0]['Value'].split('.')[0].replace('ec2-', '').replace('-', '.')
+            ret[ip] = rs['Name'][0:-1]  # cut off the final .
+
+    return ret
+
+
 def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
     entities = []
 
@@ -113,6 +138,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
         addresses = collect_eip_addresses(infrastructure_account)
         spilo_asgs = filter_asgs(infrastructure_account, asgs)
         instances = filter_instances(infrastructure_account, insts)
+        dns_records = collect_recordsets(infrastructure_account)
     except Exception:
         logger.exception('Failed to collect the AWS objects for PostgreSQL cluster detection')
         return []
@@ -125,7 +151,8 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
 
         cluster_instances = []
         eip = []
-        eip_allocation = []
+        public_ip_instance_id = ''
+        allocation_error = ''
 
         for i in cluster['instances']:
             instance_id = i['aws_id']
@@ -159,7 +186,6 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
 
                 eip_allocation = extract_eipalloc_from_lc(launch_configs, cluster_name)
 
-                public_ip_instance_id = ''
                 if eip_allocation:
                     address = [a for a in addresses if a.get('AllocationId') == eip_allocation]
                     if address:
@@ -171,7 +197,8 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
         else:
             public_ip = eip[0]['PublicIp']
             public_ip_instance_id = eip[0]['InstanceId']
-            allocation_error = ''
+
+        dnsname = dns_records.get(public_ip, '')
 
         entities.append({'type': 'postgresql_cluster',
                          'id': entity_id('pg-{}[{}:{}]'.format(cluster_name, infrastructure_account, region)),
@@ -181,6 +208,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
                          'elastic_ip_instance_id': public_ip_instance_id,
                          'allocation_error': allocation_error,
                          'instances': cluster_instances,
-                         'infrastructure_account': infrastructure_account})
+                         'infrastructure_account': infrastructure_account,
+                         'dnsname': dnsname})
 
     return entities
