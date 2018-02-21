@@ -63,8 +63,8 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
     return entities
 
 
-def collect_eip_addresses(infrastructure_account):
-    ec2 = boto3.client('ec2')
+def collect_eip_addresses(infrastructure_account, region):
+    ec2 = boto3.client('ec2', region_name=region)
 
     addresses = call_and_retry(ec2.describe_addresses)['Addresses']
 
@@ -82,8 +82,8 @@ def filter_instances(infrastructure_account, instances):
     return [i for i in instances if i['infrastructure_account'] == infrastructure_account]
 
 
-def collect_launch_configurations(infrastructure_account):
-    asg = boto3.client('autoscaling')
+def collect_launch_configurations(infrastructure_account, region):
+    asg = boto3.client('autoscaling', region_name=region)
     lc_paginator = asg.get_paginator('describe_launch_configurations')
     lcs = call_and_retry(lambda: lc_paginator.paginate().build_full_result()['LaunchConfigurations'])
 
@@ -106,15 +106,15 @@ def extract_eipalloc_from_lc(launch_configuration, cluster_name):
     return user_data['environment'].get('EIP_ALLOCATION', '')
 
 
-def collect_hosted_zones(infrastructure_account):
-    r53 = boto3.client('route53')
+def collect_hosted_zones(infrastructure_account, region):
+    r53 = boto3.client('route53', region_name=region)
     hosted_zones = r53.list_hosted_zones()  # we expect here approx. one entry
     return [hz['Id'] for hz in hosted_zones['HostedZones']]
 
 
-def collect_recordsets(infrastructure_account):
-    r53 = boto3.client('route53')
-    hosted_zone_ids = collect_hosted_zones(infrastructure_account)
+def collect_recordsets(infrastructure_account, region):
+    r53 = boto3.client('route53', region_name=region)
+    hosted_zone_ids = collect_hosted_zones(infrastructure_account, region)
     rs_paginator = r53.get_paginator('list_resource_record_sets')
 
     recordsets = []
@@ -135,10 +135,10 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
     entities = []
 
     try:
-        addresses = collect_eip_addresses(infrastructure_account)
+        addresses = collect_eip_addresses(infrastructure_account, region)
         spilo_asgs = filter_asgs(infrastructure_account, asgs)
         instances = filter_instances(infrastructure_account, insts)
-        dns_records = collect_recordsets(infrastructure_account)
+        dns_records = collect_recordsets(infrastructure_account, region)
     except Exception:
         logger.exception('Failed to collect the AWS objects for PostgreSQL cluster detection')
         return []
@@ -182,7 +182,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
             # this is so for reducing boto3 call numbers
             try:
                 if not launch_configs:
-                    launch_configs = collect_launch_configurations(infrastructure_account)
+                    launch_configs = collect_launch_configurations(infrastructure_account, region)
 
                 eip_allocation = extract_eipalloc_from_lc(launch_configs, cluster_name)
 
