@@ -80,12 +80,12 @@ def test_collect_launch_configurations(monkeypatch, fx_launch_configuration, fx_
     asg.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_launch_configuration
     boto = get_boto_client(monkeypatch, asg)
 
-    res = postgresql.collect_launch_configurations(conftest.pg_infrastructure_account)
+    res = postgresql.collect_launch_configurations(conftest.pg_infrastructure_account, conftest.pg_region)
 
     assert res == fx_launch_configuration_expected
 
     asg.get_paginator.assert_called_with('describe_launch_configurations')
-    boto.assert_called_with('autoscaling')
+    boto.assert_called_with('autoscaling', region_name=conftest.pg_region)
 
 
 def test_extract_eipalloc_from_lc(fx_eip_allocation, fx_launch_configuration_expected):
@@ -102,11 +102,11 @@ def test_collect_hostedzones(monkeypatch, fx_hosted_zones, fx_hosted_zones_expec
     route53.list_hosted_zones.return_value = fx_hosted_zones
     boto = get_boto_client(monkeypatch, route53)
 
-    res = postgresql.collect_hosted_zones(conftest.pg_infrastructure_account)
+    res = postgresql.collect_hosted_zones(conftest.pg_infrastructure_account, conftest.pg_region)
 
     assert res == fx_hosted_zones_expected
 
-    boto.assert_called_with('route53')
+    boto.assert_called_with('route53', region_name=conftest.pg_region)
 
 
 def test_collect_recordsets(monkeypatch, fx_recordsets, fx_ips_dnsnames, fx_hosted_zones_expected):
@@ -115,12 +115,12 @@ def test_collect_recordsets(monkeypatch, fx_recordsets, fx_ips_dnsnames, fx_host
     route53.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_recordsets
     boto = get_boto_client(monkeypatch, route53)
 
-    res = postgresql.collect_recordsets(conftest.pg_infrastructure_account)
+    res = postgresql.collect_recordsets(conftest.pg_infrastructure_account, conftest.pg_region)
 
     assert res == fx_ips_dnsnames
 
     route53.get_paginator.assert_called_with('list_resource_record_sets')
-    boto.assert_called_with('route53')
+    boto.assert_called_with('route53', region_name=conftest.pg_region)
 
 
 def test_get_postgresql_clusters(
