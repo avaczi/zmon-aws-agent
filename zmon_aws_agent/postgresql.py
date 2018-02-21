@@ -123,12 +123,14 @@ def extract_eipalloc_from_lc(launch_configuration, cluster_name):
     return user_data['environment'].get('EIP_ALLOCATION', '')
 
 
+@trace(tags={'aws': 'route53'})
 def collect_hosted_zones(infrastructure_account, region):
     r53 = boto3.client('route53', region_name=region)
     hosted_zones = r53.list_hosted_zones()  # we expect here approx. one entry
     return [hz['Id'] for hz in hosted_zones['HostedZones']]
 
 
+@trace(tags={'aws': 'route53'})
 def collect_recordsets(infrastructure_account, region):
     r53 = boto3.client('route53', region_name=region)
     hosted_zone_ids = collect_hosted_zones(infrastructure_account, region)
