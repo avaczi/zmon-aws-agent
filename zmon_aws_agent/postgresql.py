@@ -233,6 +233,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
                          'allocation_error': allocation_error,
                          'instances': cluster_instances,
                          'infrastructure_account': infrastructure_account,
-                         'dnsname': dnsname})
+                         'dnsname': dnsname,
+                         'shards': {'postgres': '{}:5432/postgres'.format(dnsname)}})
 
     return entities
